@@ -1,6 +1,3 @@
-
-
-
 FROM centos:7.3.1611
 
 MAINTAINER Justin.h<justin@5nas.cc> 
@@ -13,8 +10,8 @@ RUN yum  install -y openssh-clients
 ENV SSH_ROOT_PASSWORD="root" 
 
 # 添加用户root，密码root，并且将此用户添加到sudoers里  
-RUN echo "root:${SSH_ROOT_PASSWORD}" | chpasswd  
-RUN echo "root   ALL=(ALL)       ALL" >> /etc/sudoers
+# RUN echo "root:${SSH_ROOT_PASSWORD}" | chpasswd  
+# RUN echo "root   ALL=(ALL)       ALL" >> /etc/sudoers
   
 # 下面这两句比较特殊，在centos6上必须要有，否则创建出来的容器sshd不能登录  
 RUN ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key  
