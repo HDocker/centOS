@@ -25,11 +25,14 @@ RUN ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key
 RUN mkdir /var/run/sshd  
 
 # VOLUME /var/lib/mysql
+COPY docker-entrypoint.sh /ssh-entrypoint.sh
+RUN chmod -v +x /ssh-entrypoint.sh
+ENTRYPOINT ["/ssh-entrypoint.sh"]
 
-COPY centos-ssh-start.sh  /centos-ssh-start.sh
-RUN chmod -v +x /centos-ssh-start.sh
+# COPY centos-ssh-start.sh  /centos-ssh-start.sh
+# RUN chmod -v +x /centos-ssh-start.sh
 
 # 启动sshd服务并且暴露22端口  
 EXPOSE 22  
-#CMD ["/usr/sbin/sshd", "-D"]
-CMD ["/centos-ssh-start.sh"]
+CMD ["/usr/sbin/sshd", "-D"]
+#CMD ["/centos-ssh-start.sh"]
