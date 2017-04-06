@@ -2,35 +2,22 @@ FROM hoysoft/centos
 
 MAINTAINER Justin<justin@5nas.cc>
 
-# Install MySQL pre-requisites
-RUN \
-yum -y install perl pwgen libpwqu libpwquality && \
-yum clean all && \
-rm -fr /var/cache/*
+ENV PACKAGE_URL https://repo.mysql.com/yum/mysql-5.7-community/docker/x86_64/mysql-community-server-minimal-5.7.17-1.el7.x86_64.rpm
 
-# Add "mysql" user and "mysql" group first, to make sure their IDs get assigned consistently
-RUN \
-groupadd -r mysql && \
-useradd -r -g mysql mysql && \
-mkdir /docker-entrypoint-initdb.d
+# Install server
+RUN rpmkeys --import http://repo.mysql.com/RPM-GPG-KEY-mysql \
+  && yum install -y $PACKAGE_URL \
+  && yum install -y libpwquality \
+  && rm -rf /var/cache/yum/*
 
-# Install and configure MySQL 5.6
-# 1. Install latest 5.x package http://dev.mysql.com/downloads/repo/yum/
-# 2. Disable all MySQL repositories
-# 3. Enable the repository for MySQL 5.6
-RUN \
-yum -y install https://dev.mysql.com/get/mysql57-community-release-el7-7.noarch.rpm && \
-yum-config-manager --disable mysql5* && \
-yum-config-manager --enable mysql56-community && \
-yum -y install mysql-community-server && \
-yum clean all && \
-rm -rf /var/cache/*
+RUN mkdir /docker-entrypoint-initdb.d
 
 VOLUME /var/lib/mysql
 
 COPY docker-entrypoint.sh /entrypoint.sh
-RUN chmod -v +x /entrypoint.sh
+
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["mysqld"]
 
 EXPOSE 3306
+
+CMD ["mysqld"]
