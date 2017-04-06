@@ -7,26 +7,40 @@ if [ "${1:0:1}" = '-' ]; then
 fi
 
 if [ "$1" = 'mysqld' ]; then
+	# Test we're able to startup without errors. We redirect stdout to /dev/null so
+	# only the error messages are left.
+	result=0
+	output=$("$@" --verbose --help 2>&1 > /dev/null) || result=$?
+	if [ ! "$result" = "0" ]; then
+		echo >&2 'error: could not run mysql. This could be caused by a misconfigured my.cnf'
+		echo >&2 "$output"
+		exit 1
+	fi
+
 	# Get config
-	DATADIR="$("$@" --verbose --help 2>/dev/null | awk '$1 == "datadir" { print $2; exit }')"
+	DATADIR="$("$@" --verbose --help --log-bin-index=/tmp/tmp.index 2>/dev/null | awk '$1 == "datadir" { print $2; exit }')"
 
 	if [ ! -d "$DATADIR/mysql" ]; then
 		if [ -z "$MYSQL_ROOT_PASSWORD" -a -z "$MYSQL_ALLOW_EMPTY_PASSWORD" -a -z "$MYSQL_RANDOM_ROOT_PASSWORD" ]; then
-                        echo >&2 'error: database is uninitialized and password option is not specified '
-                        echo >&2 '  You need to specify one of MYSQL_ROOT_PASSWORD, MYSQL_ALLOW_EMPTY_PASSWORD and MYSQL_RANDOM_ROOT_PASSWORD'
-                        exit 1
-                fi
+			echo >&2 'error: database is uninitialized and password option is not specified '
+			echo >&2 '  You need to specify one of MYSQL_ROOT_PASSWORD, MYSQL_ALLOW_EMPTY_PASSWORD and MYSQL_RANDOM_ROOT_PASSWORD'
+			exit 1
+		fi
+		# If the password variable is a filename we use the contents of the file
+		if [ -f "$MYSQL_ROOT_PASSWORD" ]; then
+			MYSQL_ROOT_PASSWORD="$(cat $MYSQL_ROOT_PASSWORD)"
+		fi
 		mkdir -p "$DATADIR"
 		chown -R mysql:mysql "$DATADIR"
 
-		echo 'Running mysql_install_db'
-		mysql_install_db --user=mysql --datadir="$DATADIR" --rpm --keep-my-cnf
-		echo 'Finished mysql_install_db'
+		echo 'Initializing database'
+		"$@" --initialize-insecure=on
+		echo 'Database initialized'
 
-		mysqld --user=mysql --datadir="$DATADIR" --skip-networking &
+		"$@" --skip-networking --socket=/var/run/mysqld/mysqld.sock &
 		pid="$!"
 
-		mysql=( mysql --protocol=socket -uroot )
+		mysql=( mysql --protocol=socket -uroot -hlocalhost --socket=/var/run/mysqld/mysqld.sock)
 
 		for i in {30..0}; do
 			if echo 'SELECT 1' | "${mysql[@]}" &> /dev/null; then
@@ -40,20 +54,25 @@ if [ "$1" = 'mysqld' ]; then
 			exit 1
 		fi
 
-		# sed is for https://bugs.mysql.com/bug.php?id=20545
-		mysql_tzinfo_to_sql /usr/share/zoneinfo | sed 's/Local time zone must be set--see zic manual page/FCTY/' | "${mysql[@]}" mysql
-
+		mysql_tzinfo_to_sql /usr/share/zoneinfo | "${mysql[@]}" mysql
+		
 		if [ ! -z "$MYSQL_RANDOM_ROOT_PASSWORD" ]; then
 			MYSQL_ROOT_PASSWORD="$(pwmake 128)"
 			echo "GENERATED ROOT PASSWORD: $MYSQL_ROOT_PASSWORD"
+		fi
+		if [ -z "$MYSQL_ROOT_HOST" ]; then
+			ROOTCREATE="ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';"
+		else
+			ROOTCREATE="ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}'; \
+			CREATE USER 'root'@'${MYSQL_ROOT_HOST}' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}'; \
+			GRANT ALL ON *.* TO 'root'@'${MYSQL_ROOT_HOST}' WITH GRANT OPTION ;"
 		fi
 		"${mysql[@]}" <<-EOSQL
 			-- What's done in this file shouldn't be replicated
 			--  or products like mysql-fabric won't work
 			SET @@SESSION.SQL_LOG_BIN=0;
-			DELETE FROM mysql.user ;
-			CREATE USER 'root'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}' ;
-			GRANT ALL ON *.* TO 'root'@'%' WITH GRANT OPTION ;
+			DELETE FROM mysql.user WHERE user NOT IN ('mysql.sys', 'mysqlxsys', 'root') OR host NOT IN ('localhost');
+			${ROOTCREATE}
 			DROP DATABASE IF EXISTS test ;
 			FLUSH PRIVILEGES ;
 		EOSQL
@@ -75,7 +94,6 @@ if [ "$1" = 'mysqld' ]; then
 
 			echo 'FLUSH PRIVILEGES ;' | "${mysql[@]}"
 		fi
-
 		echo
 		for f in /docker-entrypoint-initdb.d/*; do
 			case "$f" in
