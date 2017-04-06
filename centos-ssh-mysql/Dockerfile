@@ -1,5 +1,4 @@
 FROM hoysoft/centos
-
 MAINTAINER Justin<justin@5nas.cc>
 
 ENV PACKAGE_URL https://repo.mysql.com/yum/mysql-5.7-community/docker/x86_64/mysql-community-server-minimal-5.7.17-1.el7.x86_64.rpm
@@ -15,7 +14,7 @@ RUN mkdir /docker-entrypoint-initdb.d
 VOLUME /var/lib/mysql
 
 COPY docker-entrypoint.sh /entrypoint.sh
-
+RUN chmod -v +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 
 EXPOSE 3306
