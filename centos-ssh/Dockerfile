@@ -2,6 +2,11 @@ FROM centos:7.3.1611
 
 MAINTAINER Justin.h<justin@5nas.cc> 
 
+#修改容器时区
+RUN rm -rf /etc/localtime
+RUN ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
+#安装SSHD
 RUN yum install -y openssh-server sudo  
 RUN sed -i 's/UsePAM yes/UsePAM no/g' /etc/ssh/sshd_config  
 #安装openssh-clients
