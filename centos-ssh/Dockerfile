@@ -12,7 +12,7 @@ RUN sed -i 's/UsePAM yes/UsePAM no/g' /etc/ssh/sshd_config
 #安装openssh-clients
 RUN yum  install -y openssh-clients
 
-ENV SSH_ROOT_PASSWORD="root" 
+# ENV SSH_ROOT_PASSWORD="root" 
 
 # 添加用户root，密码root，并且将此用户添加到sudoers里  
 # RUN echo "root:${SSH_ROOT_PASSWORD}" | chpasswd  
