@@ -12,7 +12,7 @@ RUN sed -i 's/UsePAM yes/UsePAM no/g' /etc/ssh/sshd_config
 #安装openssh-clients
 RUN yum  install -y openssh-clients
 
-ENV SSH_ROOT_PASSWORD="" 
+ENV SSH_ROOT_PASSWORD="root" 
 
 # 添加用户root，密码root，并且将此用户添加到sudoers里  
 # RUN echo "root:${SSH_ROOT_PASSWORD}" | chpasswd  
@@ -25,10 +25,14 @@ RUN ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key
 RUN mkdir /var/run/sshd  
 
 # VOLUME /var/lib/mysql
-COPY docker-entrypoint.sh  /sbin/entrypoint.sh
-RUN chmod -v +x /sbin/entrypoint.sh
-ENTRYPOINT ["/sbin/entrypoint.sh"]
+#COPY docker-entrypoint.sh  /sbin/entrypoint.sh
+#RUN chmod -v +x /sbin/entrypoint.sh
+#ENTRYPOINT ["/sbin/entrypoint.sh"]
+
+COPY centos-ssh-start.sh  /centos-ssh-start.sh
+RUN chmod -v +x /centos-ssh-start.sh
 
 # 启动sshd服务并且暴露22端口  
 EXPOSE 22  
-CMD ["/usr/sbin/sshd", "-D"]
+#CMD ["/usr/sbin/sshd", "-D"]
+CMD ["/centos-ssh-start.sh"]
