@@ -1,3 +1,6 @@
+
+
+
 FROM centos:7.3.1611
 
 MAINTAINER Justin.h<justin@5nas.cc> 
@@ -19,5 +22,11 @@ RUN ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key
    
 # 启动sshd服务并且暴露22端口  
 RUN mkdir /var/run/sshd  
+
+# VOLUME /var/lib/mysql
+
+COPY docker-entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+
 EXPOSE 22  
 CMD ["/usr/sbin/sshd", "-D"]
