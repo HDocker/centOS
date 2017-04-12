@@ -1,4 +1,4 @@
-FROM jj/apache
+FROM hoysoft/jj-apache
 
 MAINTAINER Justin.h<justin@5nas.cc> 
 
